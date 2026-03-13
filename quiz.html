@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Primo Soccorso</title>
+
+
+<style>
+
+body{
+font-family:system-ui;
+background:linear-gradient(135deg,#e8f0ff,#f7f9ff);
+padding:30px;
+display:flex;
+justify-content:center;
+}
+
+.container{
+max-width:900px;
+width:100%;
+}
+
+.card{
+background:white;
+padding:30px;
+border-radius:14px;
+box-shadow:0 10px 25px rgba(0,0,0,0.12);
+transition:background 0.3s;
+}
+
+button{
+padding:10px 16px;
+border:none;
+border-radius:8px;
+background:#3a7afe;
+color:white;
+cursor:pointer;
+margin:5px;
+font-weight:600;
+}
+
+.secondary{
+background:#b41818;
+}
+
+.skip{
+background:#f39c12;
+}
+
+.filterBtn{
+background:#6c7a89;
+}
+
+.activeMode{
+background:#27ae60;
+}
+
+.option{
+padding:10px;
+border:1px solid #ddd;
+border-radius:8px;
+margin:6px 0;
+cursor:pointer;
+}
+
+.option:hover{
+background:#eef3ff;
+}
+
+input{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:8px;
+border:1px solid #ccc;
+}
+
+.flashcard{
+font-size:22px;
+padding:40px;
+text-align:center;
+cursor:pointer;
+}
+
+.hidden{display:none;}
+
+.progressContainer{
+width:100%;
+height:14px;
+background:#e5e5e5;
+border-radius:8px;
+overflow:hidden;
+margin-top:10px;
+}
+
+#progressBar{
+height:100%;
+width:0%;
+background:#27ae60;
+transition:width 0.3s;
+}
+
+.correctFlash{
+animation:correctAnim 0.6s;
+}
+
+.wrongFlash{
+animation:wrongAnim 0.6s;
+}
+
+@keyframes correctAnim{
+0%{background:#ffffff;}
+40%{background:#b8f5c2;}
+100%{background:#ffffff;}
+}
+
+@keyframes wrongAnim{
+0%{background:#ffffff;}
+40%{background:#ffb0b0;}
+100%{background:#ffffff;}
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div class="card">
+
+<h2>🚑 Primo Soccorso</h2>
+
+<h4>Seleziona la modalità di apprendimento</h4>
+<button id="btnQuiz" onclick="setMode('quiz')">Quiz</button>
+<button id="btnFlash" onclick="setMode('flash')">Flashcards</button>
+<button id="btnCase" onclick="setMode('case')">Casi clinici</button>
+
+<div>
+<button class="filterBtn" onclick="setFilter('all')">Tutti</button>
+<button class="filterBtn" onclick="setFilter('acro')">Solo acronimi</button>
+<button class="filterBtn" onclick="setFilter('num')">Solo valori</button>
+<button class="filterBtn" onclick="setFilter('errors')">Solo errori</button>
+</div>
+
+<hr>
+
+<div id="question"></div>
+<div id="answers"></div>
+
+<input id="textAnswer" class="hidden">
+
+<div id="rangeInputs" class="hidden">
+<input id="rangeMin" placeholder="valore minimo">
+<input id="rangeMax" placeholder="valore massimo">
+</div>
+
+<button onclick="showAnswer()" class="secondary">Mostra risposta</button>
+<button onclick="skipQuestion()" class="skip">Salta</button>
+<button onclick="nextQuestion()">Prossima</button>
+
+<div id="feedback"></div>
+
+<div class="progressContainer">
+<div id="progressBar"></div>
+</div>
+
+<div id="stats"></div>
+
+</div>
+
+<p><strong>Ricorda sempre</strong> che il soccorritore non diagnostica ma osserva e stabilizza.</p>
+</div>
+
+<script src="data.js"></script>
+
+<script>
+
+let mode="quiz"
+let filter="all"
+
+let score=0
+let total=0
+
+let current
+let answered=false
+let skipped=[]
+let memory={}
+
+function animateResult(ok){
+
+let card=document.querySelector(".card")
+
+if(ok){
+card.classList.add("correctFlash")
+setTimeout(()=>card.classList.remove("correctFlash"),600)
+}else{
+card.classList.add("wrongFlash")
+setTimeout(()=>card.classList.remove("wrongFlash"),600)
+}
+
+}
+
+function levenshtein(a,b){
+
+const matrix=[]
+
+for(let i=0;i<=b.length;i++){matrix[i]=[i]}
+for(let j=0;j<=a.length;j++){matrix[0][j]=j}
+
+for(let i=1;i<=b.length;i++){
+for(let j=1;j<=a.length;j++){
+
+if(b.charAt(i-1)==a.charAt(j-1)){
+matrix[i][j]=matrix[i-1][j-1]
+}else{
+matrix[i][j]=Math.min(
+matrix[i-1][j-1]+1,
+matrix[i][j-1]+1,
+matrix[i-1][j]+1
+)
+}
+
+}
+}
+
+return matrix[b.length][a.length]
+
+}
+
+function setMode(m){
+
+mode=m
+nextQuestion()
+
+}
+
+function setFilter(f){
+
+filter=f
+nextQuestion()
+
+}
+
+function randomItem(){
+
+if(skipped.length>0 && Math.random()<0.3){
+return skipped.shift()
+}
+
+let pool=data
+
+if(filter==="acro") pool=data.filter(d=>d.type==="acro")
+if(filter==="num") pool=data.filter(d=>d.type==="num")
+if(filter==="errors") pool=data.filter(d=>memory[d.term]===1)
+
+if(pool.length===0) pool=data
+
+return pool[Math.floor(Math.random()*pool.length)]
+
+}
+
+function nextQuestion(){
+
+answered=false
+
+document.getElementById("answers").innerHTML=""
+document.getElementById("feedback").innerHTML=""
+
+document.getElementById("textAnswer").value=""
+document.getElementById("rangeMin").value=""
+document.getElementById("rangeMax").value=""
+
+document.getElementById("textAnswer").classList.add("hidden")
+document.getElementById("rangeInputs").classList.add("hidden")
+
+current=randomItem()
+
+if(mode==="flash"){
+
+document.getElementById("question").innerHTML=
+`<div class="flashcard" onclick="flip()">${current.term}</div>`
+
+return
+}
+
+if(mode==="case"){
+generateCase()
+return
+}
+
+if(current.type==="acro"){
+
+document.getElementById("question").innerHTML=
+"Significato di <b>"+current.term+"</b>"
+
+document.getElementById("textAnswer").classList.remove("hidden")
+
+return
+}
+
+if(current.type==="num"){
+
+let reverse=Math.random()<0.4
+
+if(reverse){
+
+let valueText=getValueText(current)
+
+document.getElementById("question").innerHTML=
+"A quale parametro corrisponde il valore <b>"+valueText+"</b>?"
+
+let answers=[current.term]
+
+let options=data.filter(d=>d.type==="num").map(d=>d.term)
+
+while(answers.length<4){
+
+let r=options[Math.floor(Math.random()*options.length)]
+if(!answers.includes(r))answers.push(r)
+
+}
+
+answers.sort(()=>Math.random()-0.5)
+
+answers.forEach(a=>{
+
+let el=document.createElement("div")
+el.className="option"
+el.innerText=a
+el.onclick=()=>checkReverse(a)
+
+document.getElementById("answers").appendChild(el)
+
+})
+
+return
+
+}
+
+document.getElementById("question").innerHTML=
+"Valore: <b>"+current.term+"</b>"
+
+if(current.rule==="range"){
+document.getElementById("rangeInputs").classList.remove("hidden")
+}else{
+document.getElementById("textAnswer").classList.remove("hidden")
+}
+
+return
+}
+
+document.getElementById("question").innerHTML=
+"Cosa significa <b>"+current.term+"</b>?"
+
+let answers=[current.def]
+
+let defs=data.filter(d=>d.def).map(d=>d.def)
+
+while(answers.length<4){
+
+let r=defs[Math.floor(Math.random()*defs.length)]
+if(!answers.includes(r))answers.push(r)
+
+}
+
+answers.sort(()=>Math.random()-0.5)
+
+answers.forEach(a=>{
+
+let el=document.createElement("div")
+el.className="option"
+el.innerText=a
+el.onclick=()=>checkMulti(a)
+
+document.getElementById("answers").appendChild(el)
+
+})
+
+}
+
+function checkText(){
+
+if(answered) return
+answered=true
+
+let input=document.getElementById("textAnswer").value.toLowerCase()
+let correct=current.def.toLowerCase()
+
+let ok = levenshtein(input,correct) <= 4
+
+if(ok){
+score++
+animateResult(true)
+document.getElementById("feedback").innerHTML="✅ Corretto"
+}else{
+animateResult(false)
+document.getElementById("feedback").innerHTML="❌ "+current.def
+}
+
+total++
+updateStats()
+
+}
+
+function checkMulti(val){
+
+if(answered) return
+answered=true
+
+if(val===current.def){
+score++
+animateResult(true)
+document.getElementById("feedback").innerHTML="✅ Corretto"
+}else{
+animateResult(false)
+document.getElementById("feedback").innerHTML="❌ "+current.def
+}
+
+total++
+updateStats()
+
+}
+
+function checkReverse(val){
+
+if(answered) return
+answered=true
+
+if(val===current.term){
+score++
+animateResult(true)
+document.getElementById("feedback").innerHTML="✅ Corretto"
+}else{
+animateResult(false)
+document.getElementById("feedback").innerHTML="❌ "+current.term
+}
+
+total++
+updateStats()
+
+}
+
+function checkNumber(){
+
+if(answered) return
+answered=true
+
+let ok=false
+let correctText=getValueText(current)
+
+if(current.rule==="range"){
+
+let min=parseFloat(document.getElementById("rangeMin").value)
+let max=parseFloat(document.getElementById("rangeMax").value)
+
+ok=min===current.min && max===current.max
+
+}
+
+if(current.rule==="value"){
+
+let val=parseFloat(document.getElementById("textAnswer").value)
+
+ok=val===current.value
+
+}
+
+if(ok){
+score++
+animateResult(true)
+document.getElementById("feedback").innerHTML="✅ Corretto"
+}else{
+animateResult(false)
+document.getElementById("feedback").innerHTML="❌ "+correctText
+}
+
+total++
+updateStats()
+
+}
+
+function getValueText(v){
+
+if(v.rule==="range"){
+return v.min+"-"+v.max
+}
+
+if(v.rule==="value"){
+return String(v.value)
+}
+
+}
+
+function randomRange(v){
+
+if(v.rule==="range"){
+return Math.floor(Math.random()*(v.max-v.min+1))+v.min
+}
+
+if(v.rule==="value"){
+return v.value
+}
+
+}
+
+function flip(){
+
+let card=document.querySelector(".flashcard")
+
+card.innerText=
+card.innerText===current.term
+? current.def
+: current.term
+
+}
+
+function skipQuestion(){
+
+skipped.push(current)
+nextQuestion()
+
+}
+
+function showAnswer(){
+
+let ans=current.def
+
+if(current.type==="num"){
+ans=getValueText(current)
+}
+
+document.getElementById("feedback").innerHTML="💡 "+ans
+
+}
+
+function updateStats(){
+
+document.getElementById("stats").innerHTML=
+"Punteggio: "+score+" / "+total
+
+let percent=0
+
+if(total>0){
+percent=Math.round((score/total)*100)
+}
+
+document.getElementById("progressBar").style.width=percent+"%"
+
+}
+
+document.getElementById("textAnswer").addEventListener("keydown",function(e){
+
+if(e.key==="Enter"){
+
+if(current.type==="acro") checkText()
+if(current.type==="num") checkNumber()
+
+}
+
+})
+
+document.getElementById("rangeMax").addEventListener("change",function(){
+
+let min=document.getElementById("rangeMin").value
+let max=document.getElementById("rangeMax").value
+
+if(min!=="" && max!==""){
+checkNumber()
+}
+
+})
+
+nextQuestion()
+
+</script>
+
+
+
+
+</body>
+</html>

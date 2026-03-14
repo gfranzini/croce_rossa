@@ -31,6 +31,7 @@ const data=[
 {term:"Analgesico",def:"farmaco contro il dolore"},
 {term:"Anossia",def:"assenza di ossigeno nei tessuti"},
 {term:"Aritmia",def:"battito cardiaco irregolare"},
+{term:"Asistolia",def:"specifica forma di arresto in cui scompare ogni attività elettrica"},
 {term:"Asma Allergico",def:"spasmo della muscolatura brochiale dovuto a una reazione allergica a una sostanza inalata"},
 {term:"Asma Bronchiale",def:"malattia infiammatoria cronica delle vie aeree caratterizzata da brocoplasmo reversibile"},
 {term:"Asma Non Allergico",def:"spasmo della muscolatura brochiale non dovuto a sostanze allergizzanti"},

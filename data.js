@@ -5,12 +5,14 @@ const data=[
 // =======================
 
 {term:"ABC",def:"Airway Breathing Circulation",type:"acro"},
+{term:"ACC",def:"Arresto Cardio Circolatorio",type:"acro"},
 {term:"ACR",def:"Arresto Cardiaco Respiratorio",type:"acro"},
 {term:"ALS",def:"Advanced Life Support",type:"acro"},
 {term:"BLS",def:"Basic Life Support",type:"acro"},
 {term:"BLS-D",def:"Basic Life Support Defibrillation",type:"acro"},
 {term:"BPCO",def:"Broncopneumopatia Cronica Ostruttiva",type:"acro"},
 {term:"CIPAP",def:"Continuous Positive Airway Pressure",type:"acro"},
+{term:"CTE",def:"Compressioni Toraciche Esterne",type:"acro"},
 {term:"DAE",def:"Defibrillatore Automatico Esterno",type:"acro"},
 {term:"EPA",def:"Edema Polmonare Acuto",type:"acro"},
 {term:"GAS",def:"Guardo Ascolto Sento",type:"acro"},
